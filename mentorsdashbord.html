@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engagement Dashboard</title>
+
+    <!-- ✅ Load jQuery first -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- ✅ Load Bootstrap -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <style>
+        .container_mentors1 { margin-top: 30px; }
+        .card { margin-bottom: 20px; }
+        .table th, .table td { text-align: center; }
+        .bold { font-weight: bold; } /* 🔹 Bold styling for total values */
+    </style>
+</head>
+<body>
+    <div class="container_mentors1">
+        <h1 class="text-center mb-5">Engagement Dashboard</h1>
+        
+        <!-- Engagements Table -->
+        <div id="engagementsDashboard_mentors1"></div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            let userProfiles = {}; // Stores user ID -> Name mapping
+
+            // ✅ Fetch all users to get first_name and last_name
+            function fetchUsers() {
+                return $.ajax({
+                    url: 'https://demo.defectdojo.org/api/v2/users/',
+                    method: 'GET',
+                    success: function (userData) {
+                        userData.results.forEach(user => {
+                            userProfiles[user.id] = `${user.first_name} ${user.last_name}`;
+                        });
+                    },
+                    error: function () {
+                        console.error("Failed to fetch user profiles.");
+                    }
+                });
+            }
+
+            // ✅ Fetch engagements and process only "patch" tag
+            function fetchEngagements_mentors1() {
+                return $.ajax({
+                    url: 'https://demo.defectdojo.org/api/v2/engagements/',
+                    method: 'GET',
+                    success: function (engagementData) {
+                        processEngagements_mentors1(engagementData);
+                    },
+                    error: function () {
+                        console.error("Failed to fetch engagements.");
+                    }
+                });
+            }
+
+            function processEngagements_mentors1(data) {
+                const statuses = ['Not Started', 'In Progress', 'On Hold', 'Completed'];
+                let engagementCounts = {};
+                let totalCounts = { 'Not Started': 0, 'In Progress': 0, 'On Hold': 0, 'Completed': 0, 'Total': 0 };
+
+                // ✅ Ensure data is structured correctly
+                const engagements = Array.isArray(data) ? data : data.results || [];
+
+                engagements.forEach(engagement => {
+                    if (engagement.tags && engagement.tags.includes('patch')) {
+                        let leadId = engagement.lead;
+
+                        if (!engagementCounts[leadId]) {
+                            engagementCounts[leadId] = { 'Not Started': 0, 'In Progress': 0, 'On Hold': 0, 'Completed': 0, 'Total': 0 };
+                        }
+                        engagementCounts[leadId][engagement.status] += 1;
+                        engagementCounts[leadId]['Total'] += 1;
+
+                        // 🔹 Update total counts for all users
+                        totalCounts[engagement.status] += 1;
+                        totalCounts['Total'] += 1;
+                    }
+                });
+
+                displayEngagements_mentors1(engagementCounts, totalCounts);
+            }
+
+            function displayEngagements_mentors1(engagementCounts, totalCounts) {
+                let dashboardHtml = `
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Patch Engagements Count (User-wise)</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Not Started</th>
+                                        <th>In Progress</th>
+                                        <th>On Hold</th>
+                                        <th>Completed</th>
+                                        <th class="bold">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+
+                for (let userId in engagementCounts) {
+                    let userName = userProfiles[userId] || `User ID ${userId}`;
+                    dashboardHtml += `
+                        <tr>
+                            <td>${userName}</td>
+                            <td>${engagementCounts[userId]['Not Started']}</td>
+                            <td>${engagementCounts[userId]['In Progress']}</td>
+                            <td>${engagementCounts[userId]['On Hold']}</td>
+                            <td>${engagementCounts[userId]['Completed']}</td>
+                            <td class="bold">${engagementCounts[userId]['Total']}</td>
+                        </tr>`;
+                }
+
+                // 🔹 Add total row
+                dashboardHtml += `
+                        <tr class="bold">
+                            <td>Total</td>
+                            <td>${totalCounts['Not Started']}</td>
+                            <td>${totalCounts['In Progress']}</td>
+                            <td>${totalCounts['On Hold']}</td>
+                            <td>${totalCounts['Completed']}</td>
+                            <td>${totalCounts['Total']}</td>
+                        </tr>`;
+
+                dashboardHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+
+                $('#engagementsDashboard_mentors1').html(dashboardHtml);
+            }
+
+            // ✅ Fetch users first, then fetch engagements
+            $.when(fetchUsers()).done(fetchEngagements_mentors1);
+        });
+    </script>
+</body>
+</html>
