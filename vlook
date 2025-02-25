@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLOOKUP Utility (CSV Only)</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        input, button { margin: 10px; padding: 8px; }
+        #output { margin-top: 20px; font-weight: bold; color: green; }
+    </style>
+</head>
+<body>
+
+    <h2>VLOOKUP Utility (CSV Only)</h2>
+
+    <label>Upload CSV File 1:</label>
+    <input type="file" id="file1" accept=".csv"><br>
+
+    <label>Upload CSV File 2:</label>
+    <input type="file" id="file2" accept=".csv"><br>
+
+    <label>Enter Common Column Name:</label>
+    <input type="text" id="commonColumn"><br>
+
+    <button onclick="processFiles()">Generate CSV</button>
+
+    <div id="output"></div>
+
+    <script>
+        function processFiles() {
+            const file1 = document.getElementById("file1").files[0];
+            const file2 = document.getElementById("file2").files[0];
+            const commonColumn = document.getElementById("commonColumn").value.trim();
+
+            if (!file1 || !file2 || !commonColumn) {
+                alert("Please select both files and enter a common column name.");
+                return;
+            }
+
+            const reader1 = new FileReader();
+            const reader2 = new FileReader();
+
+            reader1.onload = function (e) {
+                const sheet1 = csvToJson(e.target.result);
+                
+                reader2.onload = function (e) {
+                    const sheet2 = csvToJson(e.target.result);
+                    mergeAndDownload(sheet1, sheet2, commonColumn);
+                };
+                reader2.readAsText(file2);
+            };
+            reader1.readAsText(file1);
+        }
+
+        function csvToJson(csv) {
+            const lines = csv.split("\n").map(line => line.trim()).filter(line => line);
+            const headers = lines[0].split(",");
+            return lines.slice(1).map(line => {
+                const values = line.split(",");
+                return headers.reduce((obj, header, i) => {
+                    obj[header] = values[i] || ""; // Assign column values to keys
+                    return obj;
+                }, {});
+            });
+        }
+
+        function mergeAndDownload(sheet1, sheet2, commonColumn) {
+            let lookupMap = {};
+
+            // Build lookup dictionary from sheet2
+            sheet2.forEach(row => {
+                if (row[commonColumn]) {
+                    lookupMap[row[commonColumn]] = row;
+                }
+            });
+
+            // Merge sheet1 with sheet2 data based on common column
+            let mergedData = sheet1.map(row => {
+                let key = row[commonColumn];
+                return lookupMap[key] ? { ...row, ...lookupMap[key] } : row;
+            });
+
+            // Convert JSON to CSV
+            let csvContent = jsonToCsv(mergedData);
+
+            // Download as CSV file
+            let blob = new Blob([csvContent], { type: "text/csv" });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "output.csv";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            document.getElementById("output").innerText = "Output file generated successfully!";
+        }
+
+        function jsonToCsv(jsonData) {
+            if (!jsonData.length) return "";
+            let headers = Object.keys(jsonData[0]);
+            let csvRows = jsonData.map(row => headers.map(header => row[header] || "").join(","));
+            return [headers.join(","), ...csvRows].join("\n");
+        }
+    </script>
+
+</body>
+</html>
